@@ -24,7 +24,7 @@ void recursiveDirectory(NSString *directory, NSArray<NSString *> *ignoreDirNames
 void generateSpamCodeFile(NSString *outDirectory, NSString *mFilePath, GSCSourceType type, NSMutableString *categoryCallImportString, NSMutableString *categoryCallFuncString, NSMutableString *newClassCallImportString, NSMutableString *newClassCallFuncString);
 void generateSwiftSpamCodeFile(NSString *outDirectory, NSString *swiftFilePath);
 NSString *randomString(NSInteger length);
-void handleXcassetsFiles(NSString *directory);
+void handleXcassetsFiles(NSString *directory, NSArray<NSString *> *ignoreDirNames);
 void deleteComments(NSString *directory, NSArray<NSString *> *ignoreDirNames);
 void modifyProjectName(NSString *projectDir, NSString *oldName, NSString *newName);
 void modifyClassNamePrefix(NSMutableString *projectContent, NSString *sourceCodeDir, NSArray<NSString *> *ignoreDirNames, NSString *oldName, NSString *newName);
@@ -34,6 +34,7 @@ NSString *gSpamCodeFuncationCallName = nil;
 NSString *gNewClassFuncationCallName = nil;
 NSString *gSourceCodeDir = nil;
 static NSString * const kNewClassDirName = @"NewClass";
+static NSString * const kNewPrefix = @"com.Assaabloy";
 
 #pragma mark - 公共方法
 
@@ -48,6 +49,16 @@ NSString *randomString(NSInteger length) {
 
 NSString *randomLetter() {
     return [NSString stringWithFormat:@"%C", [kRandomAlphabet characterAtIndex:arc4random_uniform(52)]];
+}
+
+NSString *getAssetsPrefix() {
+    NSString *prefix1 = kNewPrefix;
+    //时间戳
+//    NSDateFormatter *df = [[NSDateFormatter alloc] init];
+//    [df setDateFormat:@"HHmmss"];
+//    NSString *prefix2 = [df stringFromDate:[NSDate date]];
+//    NSString *prefix = [NSString stringWithFormat:@"%@_%@_", prefix1, prefix2];
+    return [NSString stringWithFormat:@"%@_", prefix1];
 }
 
 NSRange getOutermostCurlyBraceRange(NSString *string, unichar beginChar, unichar endChar, NSInteger beginIndex) {
@@ -269,7 +280,7 @@ int main(int argc, const char * argv[]) {
         
         if (needHandleXcassets) {
             @autoreleasepool {
-                handleXcassetsFiles(gSourceCodeDir);
+                handleXcassetsFiles(gSourceCodeDir, ignoreDirNames);
             }
             printf("修改 Xcassets 中的图片名称完成\n");
         }
@@ -625,14 +636,23 @@ void generateSwiftSpamCodeFile(NSString *outDirectory, NSString *swiftFilePath) 
 
 #pragma mark - 处理 Xcassets 中的图片文件
 
-void handleXcassetsFiles(NSString *directory) {
+void handleXcassetsFiles(NSString *directory, NSArray<NSString *> *ignoreDirNames) {
     NSFileManager *fm = [NSFileManager defaultManager];
     NSArray<NSString *> *files = [fm contentsOfDirectoryAtPath:directory error:nil];
     BOOL isDirectory;
     for (NSString *fileName in files) {
         NSString *filePath = [directory stringByAppendingPathComponent:fileName];
         if ([fm fileExistsAtPath:filePath isDirectory:&isDirectory] && isDirectory) {
-            handleXcassetsFiles(filePath);
+            BOOL isIgnore = NO;
+            for (NSString *ignoreDicName in ignoreDirNames) {
+                if ([ignoreDicName isEqualToString:fileName]) {
+                    isIgnore = YES;
+                    break;;
+                }
+            }
+            if (!isIgnore) {
+                handleXcassetsFiles(filePath, ignoreDirNames);
+            }
             continue;
         }
         if (![fileName isEqualToString:@"Contents.json"]) continue;
@@ -661,10 +681,13 @@ void handleXcassetsFiles(NSString *directory) {
             
             NSString *imageFilePath = [filePath.stringByDeletingLastPathComponent stringByAppendingPathComponent:imageFileName];
             if ([fm fileExistsAtPath:imageFilePath]) {
-                NSString *newImageFileName = [randomString(10) stringByAppendingPathExtension:imageFileName.pathExtension];
+                //未包含前缀
+                NSString * newName = [NSString stringWithFormat:@"%@%@", getAssetsPrefix(), imageFileName];
+                NSString * newImageFileName = [newName stringByAppendingPathExtension:imageFileName.pathExtension];
                 NSString *newImageFilePath = [filePath.stringByDeletingLastPathComponent stringByAppendingPathComponent:newImageFileName];
                 while ([fm fileExistsAtPath:newImageFileName]) {
-                    newImageFileName = [randomString(10) stringByAppendingPathExtension:imageFileName.pathExtension];
+                    newName = [NSString stringWithFormat:@"%@%@", getAssetsPrefix(), imageFileName];
+                    newImageFileName = [newName stringByAppendingPathExtension:imageFileName.pathExtension];
                     newImageFilePath = [filePath.stringByDeletingLastPathComponent stringByAppendingPathComponent:newImageFileName];
                 }
                 
